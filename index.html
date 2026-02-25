@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Generator Bot</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2f;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .chat-container {
+            background-color: #2a2a40;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: #00e5ff;
+        }
+        .config-box {
+            background-color: #1e1e2f;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #3d3d5c;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #aeb2d5;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #2a2a40;
+            border: 1px solid #5a5a8a;
+            color: white;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #00e5ff;
+        }
+        .chat-box {
+            height: 350px;
+            overflow-y: auto;
+            background-color: #1e1e2f;
+            border: 1px solid #3d3d5c;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        .bot {
+            background-color: #3d3d5c;
+            color: white;
+            align-self: flex-start;
+        }
+        .user {
+            background-color: #00e5ff;
+            color: #1e1e2f;
+            align-self: flex-end;
+            font-weight: 500;
+        }
+        video {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 2px solid #00e5ff;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        .input-area input {
+            flex-grow: 1;
+            margin-bottom: 0;
+        }
+        button {
+            background-color: #00e5ff;
+            color: #1e1e2f;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #00b3cc;
+        }
+        .error-text {
+            color: #ff4d4d;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <h2>AI Video Generator Bot</h2>
+        
+        <div class="config-box">
+            <div class="input-group">
+                <label for="apiKey">Your API Key</label>
+                <input type="password" id="apiKey" placeholder="Paste your free API key here...">
+            </div>
+            <div class="input-group">
+                <label for="apiUrl">API Endpoint URL</label>
+                <input type="text" id="apiUrl" placeholder="e.g., https://api.kie.ai/v1/video/generate">
+                <div class="error-text">Check your API provider's documentation for the correct Endpoint URL.</div>
+            </div>
+        </div>
+
+        <div class="chat-box" id="chatBox">
+            <div class="message bot">
+                Hi! Setup your API Key and URL above. Then type a prompt below (e.g., "A cinematic shot of a lion roaring") and hit Send!
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="prompt" placeholder="Type your video idea here...">
+            <button onclick="generateVideo()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        async function generateVideo() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const prompt = document.getElementById('prompt').value.trim();
+            const chatBox = document.getElementById('chatBox');
+
+            if (!apiKey || !apiUrl || !prompt) {
+                alert("Please fill in the API Key, API Endpoint URL, and your Prompt.");
+                return;
+            }
+
+            // Show user's prompt in the chat
+            chatBox.innerHTML += `<div class="message user">${prompt}</div>`;
+            document.getElementById('prompt').value = ''; // Clear input field
+            
+            // Show loading message
+            const loadingId = 'loading-' + Date.now();
+            chatBox.innerHTML += `<div class="message bot" id="${loadingId}">
+                ⏳ Generating video... Please wait. Video AI models usually take a few minutes to process.
+            </div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                // Sending the request to the API
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    // Note: This is a standard JSON format for many APIs.
+                    // If your specific API needs different fields (like 'text' instead of 'prompt'), 
+                    // you will see the error in the chat box.
+                    body: JSON.stringify({
+                        model: "kling", // Change if your API requires a specific model name
+                        prompt: prompt
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById(loadingId).remove();
+
+                // Logic to find the video URL from the API's response
+                // It checks common locations where APIs put the URL
+                const videoUrl = data.url || 
+                                 data.video_url || 
+                                 (data.data && data.data[0] && data.data[0].url) || 
+                                 (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content);
+
+                // If URL is found, display the video
+                if (videoUrl && (videoUrl.startsWith('http') || videoUrl.endsWith('.mp4'))) {
+                    chatBox.innerHTML += `
+                        <div class="message bot">
+                            ✅ Video Generated Successfully:<br>
+                            <video controls autoplay loop>
+                                <source src="${videoUrl}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>`;
+                } else {
+                    // If no video URL is found, show the raw API response so you can see what went wrong
+                    chatBox.innerHTML += `
+                        <div class="message bot" style="border: 1px solid #ff4d4d;">
+                            ⚠️ Request successful, but couldn't find a direct video URL in the response.<br><br>
+                            <b>API Response:</b><br>
+                            <code style="font-size: 11px;">${JSON.stringify(data)}</code>
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                chatBox.innerHTML += `
+                    <div class="message bot" style="border: 1px solid #ff4d4d; color: #ff4d4d;">
+                        ❌ <b>Error:</b> ${error.message}<br>
+                        Make sure your API Endpoint URL is exactly correct and that the API provider allows CORS (browser requests).
+                    </div>`;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Allow pressing "Enter" key to send message
+        document.getElementById("prompt").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                generateVideo();
+            }
+        });
+    </script>
+</body>
+</html>
