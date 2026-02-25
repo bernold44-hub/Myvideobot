@@ -136,14 +136,13 @@
             </div>
             <div class="input-group">
                 <label for="apiUrl">API Endpoint URL</label>
-                <input type="text" id="apiUrl" placeholder="e.g., https://api.kie.ai/v1/video/generate">
-                <div class="error-text">Check your API provider's documentation for the correct Endpoint URL.</div>
+                <input type="text" id="apiUrl" value="https://api.kie.ai/api/v1/jobs/createTask" placeholder="e.g., https://api.kie.ai/api/v1/jobs/createTask">
             </div>
         </div>
 
         <div class="chat-box" id="chatBox">
             <div class="message bot">
-                Hi! Setup your API Key and URL above. Then type a prompt below (e.g., "A cinematic shot of a lion roaring") and hit Send!
+                Hi! Setup your API Key above. Then type a prompt below (e.g., "A cinematic shot of a lion roaring") and hit Send!
             </div>
         </div>
 
@@ -167,44 +166,40 @@
 
             // Show user's prompt in the chat
             chatBox.innerHTML += `<div class="message user">${prompt}</div>`;
-            document.getElementById('prompt').value = ''; // Clear input field
+            document.getElementById('prompt').value = ''; 
             
             // Show loading message
             const loadingId = 'loading-' + Date.now();
             chatBox.innerHTML += `<div class="message bot" id="${loadingId}">
-                ⏳ Generating video... Please wait. Video AI models usually take a few minutes to process.
+                ⏳ Sending request to API...
             </div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
-                // Sending the request to the API
+                // Sending the request to the API with the updated JSON structure
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${apiKey}`
                     },
-                    // Note: This is a standard JSON format for many APIs.
-                    // If your specific API needs different fields (like 'text' instead of 'prompt'), 
-                    // you will see the error in the chat box.
                     body: JSON.stringify({
-                        model: "kling", // Change if your API requires a specific model name
-                        prompt: prompt
+                        model: "kling", 
+                        input: {
+                            prompt: prompt
+                        }
                     })
                 });
 
                 const data = await response.json();
                 document.getElementById(loadingId).remove();
 
-                // Logic to find the video URL from the API's response
-                // It checks common locations where APIs put the URL
-                const videoUrl = data.url || 
-                                 data.video_url || 
-                                 (data.data && data.data[0] && data.data[0].url) || 
-                                 (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content);
+                // Logic to display the response
+                const videoUrl = data.url || data.video_url || (data.data && data.data.url);
+                const taskId = data.taskId || data.task_id || (data.data && data.data.taskId);
 
-                // If URL is found, display the video
                 if (videoUrl && (videoUrl.startsWith('http') || videoUrl.endsWith('.mp4'))) {
+                    // If video URL is directly provided
                     chatBox.innerHTML += `
                         <div class="message bot">
                             ✅ Video Generated Successfully:<br>
@@ -213,11 +208,22 @@
                                 Your browser does not support the video tag.
                             </video>
                         </div>`;
+                } else if (taskId) {
+                    // If the API returns a Task ID instead of a direct video (Async generation)
+                    chatBox.innerHTML += `
+                        <div class="message bot" style="border: 1px solid #00e5ff;">
+                            🔄 <b>Task Submitted Successfully!</b><br>
+                            The AI is creating your video. It takes a few minutes.<br>
+                            <b>Your Task ID is:</b> <code>${taskId}</code><br><br>
+                            <i>(Since this API processes videos in the background, you might need a separate API call to check the status using this Task ID.)</i><br><br>
+                            <b>Full Response:</b><br>
+                            <code style="font-size: 11px;">${JSON.stringify(data)}</code>
+                        </div>`;
                 } else {
-                    // If no video URL is found, show the raw API response so you can see what went wrong
+                    // Show raw response if format is unknown or there's an error
                     chatBox.innerHTML += `
                         <div class="message bot" style="border: 1px solid #ff4d4d;">
-                            ⚠️ Request successful, but couldn't find a direct video URL in the response.<br><br>
+                            ⚠️ Request went through, but output format is unknown.<br><br>
                             <b>API Response:</b><br>
                             <code style="font-size: 11px;">${JSON.stringify(data)}</code>
                         </div>`;
@@ -226,14 +232,13 @@
                 document.getElementById(loadingId).remove();
                 chatBox.innerHTML += `
                     <div class="message bot" style="border: 1px solid #ff4d4d; color: #ff4d4d;">
-                        ❌ <b>Error:</b> ${error.message}<br>
-                        Make sure your API Endpoint URL is exactly correct and that the API provider allows CORS (browser requests).
+                        ❌ <b>Network Error:</b> ${error.message}<br>
+                        Make sure your API URL is correct and the provider allows browser requests (CORS).
                     </div>`;
             }
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Allow pressing "Enter" key to send message
         document.getElementById("prompt").addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 event.preventDefault();
